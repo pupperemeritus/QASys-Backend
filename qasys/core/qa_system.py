@@ -1,4 +1,4 @@
-from langchain.chains import RetrievalQA
+from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain.llms.base import BaseLanguageModel
 from langchain.vectorstores.base import VectorStore
 
