@@ -12,11 +12,14 @@ from langchain_community.embeddings import OllamaEmbeddings, HuggingFaceEmbeddin
 from langchain_community.vectorstores import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+import torch
 
 from qasys.config import ModelProvider, StorageType, settings
 from qasys.utils.storage import AWSStorage, AzureStorage, GCPStorage, LocalStorage
 
 security = HTTPBearer()
+
+device = "gpu" if torch.cuda.is_available() else "cpu"
 
 
 @lru_cache()
@@ -31,16 +34,18 @@ def get_embedding_model() -> Embeddings:
     match settings.MODEL_PROVIDER:
         case ModelProvider.OPENAI:
             return OpenAIEmbeddings(
-                model=settings.EMBEDDINGS_MODEL_NAME,
+                model=settings.OPENAI_EMBEDDINGS_MODEL_NAME,
                 openai_api_key=settings.OPENAI_API_KEY,
             )
         case ModelProvider.OLLAMA:
             return OllamaEmbeddings(
-                model=settings.OLLAMA_MODEL_NAME,
+                model=settings.OLLAMA_EMBEDDINGS_MODEL_NAME,
                 base_url=settings.OLLAMA_API_BASE,
             )
         case ModelProvider.HUGGINGFACE:
-            return HuggingFaceEmbeddings(model_name=settings.HF_MODEL_NAME)
+            return HuggingFaceEmbeddings(
+                model_name=settings.HF_EMBEDDINGS_MODEL_NAME, device=device
+            )
         case _:
             raise ValueError(f"Unsupported model provider: {settings.MODEL_PROVIDER}")
 
@@ -67,17 +72,17 @@ def get_llm() -> BaseLanguageModel:
     match settings.MODEL_PROVIDER:
         case ModelProvider.OPENAI:
             return ChatOpenAI(
-                model_name=settings.OPENAI_MODEL_NAME,
-                openai_api_key=settings.OPENAI_API_KEY,
+                model=settings.OPENAI_LLM_MODEL_NAME,
+                api_key=settings.OPENAI_API_KEY,
             )
         case ModelProvider.OLLAMA:
             return Ollama(
-                model=settings.OLLAMA_MODEL_NAME,
+                model=settings.OLLAMA_LLM_MODEL_NAME,
                 base_url=settings.OLLAMA_API_BASE,
             )
         case ModelProvider.HUGGINGFACE:
-            tokenizer = AutoTokenizer.from_pretrained(settings.HF_MODEL_NAME)
-            model = AutoModelForCausalLM.from_pretrained(settings.HF_MODEL_NAME)
+            tokenizer = AutoTokenizer.from_pretrained(settings.HF_LLM_MODEL_NAME)
+            model = AutoModelForCausalLM.from_pretrained(settings.HF_LLM_MODEL_NAME)
             pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
             return HuggingFacePipeline(pipeline=pipe)
         case _:

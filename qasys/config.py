@@ -41,22 +41,21 @@ class Settings(BaseSettings):
     # LangChain configurations
     MODEL_PROVIDER: ModelProvider = ModelProvider.OLLAMA
 
-    # OpenAI settings
     match MODEL_PROVIDER:
         case MODEL_PROVIDER.OPENAI:
+            # OpenAI settings
             OPENAI_API_KEY: SecretStr
-            OPENAI_MODEL_NAME: str = "gpt-3.5-turbo"
-
+            OPENAI_LLM_MODEL_NAME: str = "gpt-3.5-turbo"
+            OPENAI_EMBEDDINGS_MODEL_NAME: str = "text-embedding-ada-002"
         case MODEL_PROVIDER.OLLAMA:
             # Ollama settings
             OLLAMA_API_BASE: str = "http://localhost:11435/v1"
-            OLLAMA_MODEL_NAME: str = "llama2"
+            OLLAMA_LLM_MODEL_NAME: str = "llama3-chatqa"
+            OLLAMA_EMBEDDINGS_MODEL_NAME: str = "all-minilm"
         case MODEL_PROVIDER.HUGGINGFACE:
             # HuggingFace settings
-            HF_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
-
-    # Common settings
-    EMBEDDINGS_MODEL_NAME: str = "text-embedding-ada-002"
+            HF_LLM_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+            HF_EMBEDDINGS_MODEL_NAME: str = "sentence-transformers/all-mpnet-base-v2"
 
     class Config:
         env_file = ".env"
