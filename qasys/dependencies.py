@@ -1,21 +1,23 @@
 from functools import lru_cache
-from typing import Any, Dict, Literal, LiteralString, Optional
+from typing import Literal, LiteralString
 
+import torch
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPBearer
 from firebase_admin import auth, db
 from langchain.llms.base import BaseLanguageModel
 from langchain.schema.embeddings import Embeddings
-from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
-from langchain_community.llms.ollama import Ollama
-from langchain_community.embeddings import OllamaEmbeddings, HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
+from langchain_huggingface.chat_models import ChatHuggingFace
+from langchain_huggingface.llms import HuggingFacePipeline
+from langchain_ollama.chat_models import ChatOllama
+from langchain_ollama.embeddings import OllamaEmbeddings
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-import torch
 
 from qasys.config import ModelProvider, StorageType, settings
 from qasys.utils.storage import (
+    AuthenticatedStorage,
     AWSStorage,
     AzureStorage,
     GCPStorage,
@@ -49,9 +51,7 @@ def get_embedding_model() -> Embeddings:
                 base_url=settings.OLLAMA_API_BASE,
             )
         case ModelProvider.HUGGINGFACE:
-            return HuggingFaceEmbeddings(
-                model_name=settings.HF_EMBEDDINGS_MODEL_NAME, device=device
-            )
+            return ChatHuggingFace(model_name=settings.HF_EMBEDDINGS_MODEL_NAME)
         case _:
             raise ValueError(f"Unsupported model provider: {settings.MODEL_PROVIDER}")
 
@@ -82,7 +82,7 @@ def get_llm() -> BaseLanguageModel:
                 api_key=settings.OPENAI_API_KEY,
             )
         case ModelProvider.OLLAMA:
-            return Ollama(
+            return ChatOllama(
                 model=settings.OLLAMA_LLM_MODEL_NAME,
                 base_url=settings.OLLAMA_API_BASE,
             )
@@ -100,7 +100,18 @@ def get_vector_store(embedding_model=Depends(get_embedding_model)) -> Chroma:
     return Chroma(embedding_function=embedding_model)
 
 
-async def get_user_context(user_id: str = None) -> LiteralString | Literal[""]:
+async def verify_token(token: str):
+    try:
+        split_token = token.split("Bearer ")[-1]
+        decoded_token = auth.verify_id_token(id_token=split_token)
+        return decoded_token["uid"]
+    except Exception as e:
+        raise HTTPException(
+            status_code=401, detail=f"Invalid or expired token: {str(e)}"
+        )
+
+
+async def get_user_context(user_id: str) -> LiteralString | Literal[""]:
     if not user_id:
         return ""
     try:
