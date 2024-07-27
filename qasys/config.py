@@ -1,8 +1,7 @@
 from enum import Enum
-from typing import Optional
 
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ModelProvider(str, Enum):
@@ -19,24 +18,29 @@ class StorageType(str, Enum):
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "LangChain Q&A FastAPI"
-    DEBUG: bool = False
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", str_max_length=1000
+    )
+    APP_NAME: str = Field("LangChain Q&A FastAPI")
+    DEBUG: bool = Field(False)
+    PROJECT_ID: str
 
     # Database configurations
-    FIREBASE_CREDENTIALS_PATH: SecretStr
+    FIREBASE_CREDENTIALS_FILENAME: SecretStr
+    FIREBASE_MESSAGES_PATH: str
 
     # Vector DB configurations
-    VECTOR_DB_TYPE: str = "chroma"
+    VECTOR_DB_TYPE: str = Field("chroma")
 
     # Storage configurations
     STORAGE_TYPE: StorageType = StorageType.LOCAL
     match STORAGE_TYPE:
         case StorageType.LOCAL:
-            PDF_STORAGE_PATH: str = "data/pdfs"
+            PDF_STORAGE_PATH: str = Field("data/pdfs")
         case StorageType.GCP | StorageType.AWS | StorageType.AZURE:
-            STORAGE_BUCKET: str
+            STORAGE_BUCKET: str = Field()
         case StorageType.AZURE:
-            AZURE_CONNECTION_STRING: str
+            AZURE_CONNECTION_STRING: str = Field()
 
     # LangChain configurations
     MODEL_PROVIDER: ModelProvider = ModelProvider.OLLAMA
@@ -44,23 +48,17 @@ class Settings(BaseSettings):
     match MODEL_PROVIDER:
         case MODEL_PROVIDER.OPENAI:
             # OpenAI settings
-            OPENAI_API_KEY: SecretStr
-            OPENAI_LLM_MODEL_NAME: str = "gpt-3.5-turbo"
-            OPENAI_EMBEDDINGS_MODEL_NAME: str = "text-embedding-ada-002"
+            OPENAI_API_KEY: SecretStr = Field()
+            OPENAI_LLM_MODEL_NAME: str = Field("gpt-3.5-turbo")
+            OPENAI_EMBEDDINGS_MODEL_NAME: str = Field("text-embedding-ada-002")
         case MODEL_PROVIDER.OLLAMA:
             # Ollama settings
-            OLLAMA_API_BASE: str = "http://localhost:11435/v1"
-            OLLAMA_LLM_MODEL_NAME: str = "llama3-chatqa"
-            OLLAMA_EMBEDDINGS_MODEL_NAME: str = "all-minilm"
+            OLLAMA_LLM_MODEL_NAME: str = Field("llama3-chatqa")
+            OLLAMA_EMBEDDINGS_MODEL_NAME: str = Field("all-minilm")
         case MODEL_PROVIDER.HUGGINGFACE:
             # HuggingFace settings
-            HF_LLM_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
-            HF_EMBEDDINGS_MODEL_NAME: str = "sentence-transformers/all-mpnet-base-v2"
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        use_enum_values = True
+            HF_LLM_MODEL_NAME: str = Field("sentence-transformers/all-MiniLM-L6-v2")
+            HF_EMBEDDINGS_MODEL_NAME: str = Field("sentence-transformers/all-mpnet-base-v2")
 
 
 settings = Settings()
