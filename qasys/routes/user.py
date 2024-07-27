@@ -1,32 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from langchain.schema.vectorstore import VectorStore
 
-from qasys.dependencies import get_current_user_id, get_vector_store
-from qasys.utils.storage import AuthenticatedStorage, get_authenticated_storage
+from qasys.dependencies import (
+    get_authenticated_storage,
+    get_vector_store,
+)
+from qasys.utils.storage import AuthenticatedStorage
 
 router = APIRouter()
 
 
 @router.get("/me")
-async def get_current_user(user_id: str = Depends(get_current_user_id)):
+async def get_current_user(request: Request):
+    user_id = request.state.user_id
     return {"user_id": user_id}
 
 
 @router.post("/clear_data")
 async def clear_user_data(
-    user_id: str = Depends(get_current_user_id),
+    request: Request,
     storage: AuthenticatedStorage = Depends(get_authenticated_storage),
     vector_store: VectorStore = Depends(get_vector_store),
 ):
     try:
-        # Clear user's files
+        user_id = request.state.user_id
         files = storage.list_files(user_id)
         for file in files:
             storage.delete_file(user_id, file)
 
-        # Here you would also clear other user data, such as from the vector store
-        # This depends on how you've implemented your vector store
-        # For example:
         vector_store.clear_user_data(user_id)
 
         return {"message": "User data cleared successfully"}
@@ -36,10 +37,11 @@ async def clear_user_data(
 
 @router.get("/files")
 async def list_user_files(
-    user_id: str = Depends(get_current_user_id),
+    request: Request,
     storage=Depends(get_authenticated_storage),
 ):
     try:
+        user_id = request.state.user_id
         files = storage.list_files(user_id)
         return {"files": files}
     except Exception as e:
