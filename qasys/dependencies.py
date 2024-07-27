@@ -15,7 +15,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 
 from qasys.config import ModelProvider, StorageType, settings
-from qasys.utils.storage import AWSStorage, AzureStorage, GCPStorage, LocalStorage
+from qasys.utils.storage import (
+    AWSStorage,
+    AzureStorage,
+    GCPStorage,
+    LocalStorage,
+    AuthenticatedStorage,
+)
 
 security = HTTPBearer()
 
@@ -106,19 +112,6 @@ async def get_user_context(user_id: str = None) -> LiteralString | Literal[""]:
         return ""
 
 
-async def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> Optional[Dict]:
-    if credentials:
-        token = credentials.credentials
-        try:
-            return auth.verify_id_token(token)
-        except Exception as e:
-            print(f"Token verification failed: {e}")
-    raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-
-
-def get_current_user_id(token: Dict = Depends(verify_token)) -> str:
-    if token and "uid" in token:
-        return token["uid"]
-    raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+def get_authenticated_storage():
+    base_storage = get_storage()
+    return AuthenticatedStorage(base_storage)

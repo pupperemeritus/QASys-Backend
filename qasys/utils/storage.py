@@ -206,11 +206,6 @@ class AuthenticatedStorage:
         return self.storage.get_file_metadata(self._get_user_path(user_id, file_path))
 
 
-def get_authenticated_storage():
-    base_storage = get_storage()
-    return AuthenticatedStorage(base_storage)
-
-
 def create_temp_file(content):
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(content)
