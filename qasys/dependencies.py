@@ -3,7 +3,6 @@ from typing import Literal, LiteralString
 
 import torch
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
 from firebase_admin import auth, db
 from langchain.llms.base import BaseLanguageModel
 from langchain.schema.embeddings import Embeddings
@@ -22,22 +21,15 @@ from qasys.utils.storage import (
     AzureStorage,
     GCPStorage,
     LocalStorage,
-    AuthenticatedStorage,
 )
 
-security = HTTPBearer()
 
-device = "gpu" if torch.cuda.is_available() else "cpu"
-
-
-@lru_cache()
 def get_openai_api_key():
     if not settings.OPENAI_API_KEY:
         raise HTTPException(status_code=500, detail="OpenAI API key not found")
     return settings.OPENAI_API_KEY
 
 
-@lru_cache()
 def get_embedding_model() -> Embeddings:
     match settings.MODEL_PROVIDER:
         case ModelProvider.OPENAI:
@@ -48,7 +40,6 @@ def get_embedding_model() -> Embeddings:
         case ModelProvider.OLLAMA:
             return OllamaEmbeddings(
                 model=settings.OLLAMA_EMBEDDINGS_MODEL_NAME,
-                base_url=settings.OLLAMA_API_BASE,
             )
         case ModelProvider.HUGGINGFACE:
             return ChatHuggingFace(model_name=settings.HF_EMBEDDINGS_MODEL_NAME)
@@ -56,7 +47,6 @@ def get_embedding_model() -> Embeddings:
             raise ValueError(f"Unsupported model provider: {settings.MODEL_PROVIDER}")
 
 
-@lru_cache()
 def get_storage():
     match settings.STORAGE_TYPE:
         case StorageType.LOCAL:
@@ -73,7 +63,6 @@ def get_storage():
             raise ValueError(f"Unsupported storage type: {settings.STORAGE_TYPE}")
 
 
-@lru_cache()
 def get_llm() -> BaseLanguageModel:
     match settings.MODEL_PROVIDER:
         case ModelProvider.OPENAI:
@@ -95,7 +84,6 @@ def get_llm() -> BaseLanguageModel:
             raise ValueError(f"Unsupported model provider: {settings.MODEL_PROVIDER}")
 
 
-@lru_cache()
 def get_vector_store(embedding_model=Depends(get_embedding_model)) -> Chroma:
     return Chroma(embedding_function=embedding_model)
 
@@ -119,7 +107,6 @@ async def get_user_context(user_id: str) -> LiteralString | Literal[""]:
         messages = ref.get()
         return "\n".join(messages) if messages else ""
     except Exception as e:
-        print(f"Error fetching user context: {e}")
         return ""
 
 
