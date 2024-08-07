@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import BinaryIO, List
 
 import boto3
+import firebase_admin
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcp_storage
 
@@ -44,12 +45,14 @@ class LocalStorage(Storage):
 
     def save_file(self, file_name: str, file_content: BinaryIO) -> str:
         file_path = os.path.join(self.base_path, file_name)
-        with open(file_path, "wb") as f:
-            f.write(file_content.read())
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        if not os.path.isfile(file_path):
+            with open(file_path, "xb") as f:
+                f.write(file_content.read())
         return file_path
 
-    def get_file(self, file_path: str) -> BinaryIO:
-        return open(file_path, "rb")
+    def get_file(self, file_path: str) -> bytes:
+        return open(file_path, "rb").read()
 
     def delete_file(self, file_path: str) -> bool:
         try:
@@ -182,28 +185,27 @@ class AzureStorage(Storage):
 
 
 class AuthenticatedStorage:
-    def __init__(self, storage: Storage):
+    def __init__(self, storage: Storage, user_id: str):
         self.storage = storage
+        self.user_id = user_id
 
-    def _get_user_path(self, user_id: str, file_path: str) -> str:
-        return f"users/{user_id}/{file_path}"
+    def _get_user_path(self, file_path: str) -> str:
+        return f"users/{self.user_id}/{file_path}"
 
-    def save_file(self, user_id: str, file_name: str, file_content: BinaryIO) -> str:
-        return self.storage.save_file(
-            self._get_user_path(user_id, file_name), file_content
-        )
+    def save_file(self, file_path: str, file_content: BinaryIO) -> str:
+        return self.storage.save_file(file_path, file_content)
 
-    def get_file(self, user_id: str, file_path: str) -> BinaryIO:
-        return self.storage.get_file(self._get_user_path(user_id, file_path))
+    def get_file(self, file_path: str) -> bytes:
+        return open(file_path, mode="rb").read()
 
     def delete_file(self, user_id: str, file_path: str) -> bool:
-        return self.storage.delete_file(self._get_user_path(user_id, file_path))
+        return self.storage.delete_file(self._get_user_path(file_path))
 
     def list_files(self, user_id: str, directory: str = "") -> List[str]:
-        return self.storage.list_files(self._get_user_path(user_id, directory))
+        return self.storage.list_files(self._get_user_path(directory))
 
-    def get_file_metadata(self, user_id: str, file_path: str) -> dict:
-        return self.storage.get_file_metadata(self._get_user_path(user_id, file_path))
+    def get_file_metadata(self, file_path: str) -> dict:
+        return self.storage.get_file_metadata(self._get_user_path(file_path))
 
 
 def create_temp_file(content):
