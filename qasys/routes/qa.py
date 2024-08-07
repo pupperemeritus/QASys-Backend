@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from langchain.schema.embeddings import Embeddings
 from langchain.schema.language_model import BaseLanguageModel
 from pydantic import BaseModel
 
@@ -16,18 +15,18 @@ class Query(BaseModel):
 
 @router.post("/ask")
 async def ask_question(
+    query: Query,
     request: Request,
-    user_context: str,
     llm: BaseLanguageModel = Depends(get_llm),
     vector_store: vector_store.Chroma = Depends(get_vector_store),
 ):
     try:
-        query = await request.json()
         qa_system = create_qa_system(vector_store, llm)
         user_id = request.state.user_id
-        user_context = get_user_context(user_id)
-        context = f"Previous context: {user_context}\n\nQuestion: {query["question"]}"
+        user_context = await get_user_context(user_id)
+        context = f"Previous context: {user_context}\n\nQuestion: {query.question}"
         response = qa_system.invoke(context)
         return {"answer": response}
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
