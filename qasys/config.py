@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     STORAGE_TYPE: StorageType = StorageType.LOCAL
     match STORAGE_TYPE:
         case StorageType.LOCAL:
-            PDF_STORAGE_PATH: str = Field("data/pdfs")
+            PDF_STORAGE_PATH: str = Field()
         case StorageType.GCP | StorageType.AWS | StorageType.AZURE:
             STORAGE_BUCKET: str = Field()
         case StorageType.AZURE:
@@ -58,7 +58,9 @@ class Settings(BaseSettings):
         case MODEL_PROVIDER.HUGGINGFACE:
             # HuggingFace settings
             HF_LLM_MODEL_NAME: str = Field("sentence-transformers/all-MiniLM-L6-v2")
-            HF_EMBEDDINGS_MODEL_NAME: str = Field("sentence-transformers/all-mpnet-base-v2")
+            HF_EMBEDDINGS_MODEL_NAME: str = Field(
+                "sentence-transformers/all-mpnet-base-v2"
+            )
 
 
 settings = Settings()
