@@ -1,7 +1,5 @@
-from functools import lru_cache
 from typing import Literal, LiteralString
 
-import torch
 from fastapi import Depends, HTTPException
 from firebase_admin import auth, db
 from langchain.llms.base import BaseLanguageModel
@@ -73,7 +71,6 @@ def get_llm() -> BaseLanguageModel:
         case ModelProvider.OLLAMA:
             return ChatOllama(
                 model=settings.OLLAMA_LLM_MODEL_NAME,
-                base_url=settings.OLLAMA_API_BASE,
             )
         case ModelProvider.HUGGINGFACE:
             tokenizer = AutoTokenizer.from_pretrained(settings.HF_LLM_MODEL_NAME)
@@ -110,6 +107,6 @@ async def get_user_context(user_id: str) -> LiteralString | Literal[""]:
         return ""
 
 
-def get_authenticated_storage():
+def get_authenticated_storage(user_id):
     base_storage = get_storage()
-    return AuthenticatedStorage(base_storage)
+    return AuthenticatedStorage(base_storage, user_id)
